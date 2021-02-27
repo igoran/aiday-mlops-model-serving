@@ -6,7 +6,7 @@ namespace infra
 {
     public class MyFunctionAppSlot : FunctionAppSlot
     {
-        public MyFunctionAppSlot(string slotName, FunctionAppSlot app, InputMap<string> settings) : base(slotName, new FunctionAppSlotArgs()
+        public MyFunctionAppSlot(string slotName, FunctionApp app, InputMap<string> settings) : base(slotName, new FunctionAppSlotArgs()
         {
             Name = slotName,
             ResourceGroupName = app.ResourceGroupName,

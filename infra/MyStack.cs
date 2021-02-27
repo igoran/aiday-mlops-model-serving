@@ -1,5 +1,6 @@
 using System;
 using System.Text.RegularExpressions;
+using infra;
 using Pulumi;
 using Pulumi.Azure.AppInsights;
 using Pulumi.Azure.AppService;
@@ -99,62 +100,15 @@ class MyStack : Stack
                 {"APPINSIGHTS_INSTRUMENTATIONKEY", appInsights.InstrumentationKey}
         };
 
-        var app = new FunctionApp("fxapp" + StackSuffix.ToLowerInvariant(), new FunctionAppArgs
-        {
-            ResourceGroupName = resourceGroup.Name,
-            AppServicePlanId = appServicePlan.Id,
-            AppSettings = valuesMap,
-            SiteConfig = new FunctionAppSiteConfigArgs
-            {
-                Cors = new FunctionAppSiteConfigCorsArgs
-                {
-                    AllowedOrigins = new InputList<string>
-                        {
-                            "http://localhost:5500"
-                        },
-                    SupportCredentials = true
-                }
-            },
-            StorageAccountName = storageAccount.Name,
-            StorageAccountAccessKey = storageAccount.PrimaryAccessKey,
-            Version = "~3"
-        });
+        var productionSlot = new MyFunctionApp("fxapp" + StackSuffix.ToLowerInvariant(), resourceGroup, appServicePlan, storageAccount, valuesMap);
 
-        var stagingSlot = new FunctionAppSlot("staging", new FunctionAppSlotArgs
-        {
-            Name = "staging",
-            ResourceGroupName = resourceGroup.Name,
-            AppServicePlanId = appServicePlan.Id,
-            StorageAccountName = storageAccount.Name,
-            StorageAccountAccessKey = storageAccount.PrimaryAccessKey,
-            FunctionAppName = app.Name,
-            Version = "~3",
-            SiteConfig = new FunctionAppSlotSiteConfigArgs
-            {
-                Cors = new FunctionAppSlotSiteConfigCorsArgs
-                {
-                    AllowedOrigins = new InputList<string>
-                        {
-                            "http://localhost:5500"
-                        },
-                    SupportCredentials = true
-                }
-            },
-            AppSettings =
-            {
-                {"runtime", "dotnet"},
-                {"WEBSITE_RUN_FROM_PACKAGE", codeBlobUrl},
-                {"AzureWebJobsStorage", storageAccount.PrimaryConnectionString},
-                {"ML_MODEL_URI", stagingModelVersion},
-                {"APPINSIGHTS_INSTRUMENTATIONKEY", appInsights.InstrumentationKey}
-            },
-        });
+        var stagingSlot = new MyFunctionAppSlot("staging", productionSlot, valuesMap) ;
 
         StorageConnectionString = Output.Format($"{storageAccount.PrimaryConnectionString}");
 
         StagingEndpoint = Output.Format($"https://{stagingSlot.DefaultHostname}");
 
-        Endpoint = Output.Format($"https://{app.DefaultHostname}");
+        Endpoint = Output.Format($"https://{productionSlot.DefaultHostname}");
 
         ModelVersion = Output.Format($"{productionModelVersion}");
     }
