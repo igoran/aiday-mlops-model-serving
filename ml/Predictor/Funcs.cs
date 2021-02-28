@@ -78,7 +78,7 @@ namespace Predictor
         {
             var uri = Environment.GetEnvironmentVariable("ML_MODEL_URI") ?? string.Empty;
 
-            return new OkObjectResult($"Model Uri=\"{uri}\"");
+            return new OkObjectResult(uri);
         }
     }
 }

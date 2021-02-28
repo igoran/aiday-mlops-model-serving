@@ -2,7 +2,7 @@
 
 namespace Predictor.Models
 {
-    public class SentimentPrediction : SentimentIssue
+    public class SentimentPrediction
     {
         [ColumnName("PredictedLabel")]
         public bool Prediction { get; set; }
@@ -10,6 +10,8 @@ namespace Predictor.Models
         public float Probability { get; set; }
 
         public float Score { get; set; }
+
+        public string SentimentText;
 
         public override string ToString()
         {
