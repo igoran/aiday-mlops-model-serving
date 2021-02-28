@@ -13,14 +13,7 @@ class MyStack : Stack
     public string ProjectStack { get; }
     public string StackSuffix { get; }
 
-    public string? GetModelVersionForProductionSlot()
-    {
-        var currentStack = new StackReference($"igoran/{Deployment.Instance.ProjectName}/{Deployment.Instance.StackName}");
-
-        return (string?) currentStack.GetValueAsync(nameof(ModelVersion)).GetAwaiter().GetResult();
-    }
-
-    public string GetModelVersionForStagingSlot()
+    public string GetModelVersion()
     {
         if (Deployment.Instance.IsDryRun)
         {
@@ -43,11 +36,9 @@ class MyStack : Stack
 
         StackSuffix = Regex.Replace(Deployment.Instance.StackName, "[^a-z0-9]", string.Empty, RegexOptions.IgnoreCase);
 
-        var stagingModelVersion = GetModelVersionForStagingSlot();
+        var modelVersion = GetModelVersion();
 
-        var productionModelVersion = GetModelVersionForProductionSlot() ?? stagingModelVersion;
-
-        Console.WriteLine($"ML Model Version. Staging: {stagingModelVersion} Prod: {productionModelVersion}");
+        Console.WriteLine($"ML Model Version {modelVersion}");
 
         var resourceGroup = new ResourceGroup(ProjectStack);
 
@@ -91,34 +82,24 @@ class MyStack : Stack
             ApplicationType = "web"
         });
 
-        var valuesMap = new InputMap<string>()
+        var appSettings = new InputMap<string>()
         {
                 {"runtime", "dotnet"},
                 {"WEBSITE_RUN_FROM_PACKAGE", codeBlobUrl},
                 {"AzureWebJobsStorage", storageAccount.PrimaryConnectionString},
-                {"ML_MODEL_URI", productionModelVersion},
+                {"ML_MODEL_URI", modelVersion},
                 {"APPINSIGHTS_INSTRUMENTATIONKEY", appInsights.InstrumentationKey}
         };
 
-        var productionSlot = new MyFunctionApp("fxapp" + StackSuffix.ToLowerInvariant(), resourceGroup, appServicePlan, storageAccount, valuesMap);
-
-        var stagingSlot = new MyFunctionAppSlot("staging", productionSlot, valuesMap) ;
+        var appFx = new MyFunctionApp("fxapp" + StackSuffix.ToLowerInvariant(), resourceGroup, appServicePlan, storageAccount, appSettings);
 
         StorageConnectionString = Output.Format($"{storageAccount.PrimaryConnectionString}");
 
-        StagingEndpoint = Output.Format($"https://{stagingSlot.DefaultHostname}");
-
-        Endpoint = Output.Format($"https://{productionSlot.DefaultHostname}");
-
-        ModelVersion = Output.Format($"{productionModelVersion}");
+        Endpoint = Output.Format($"https://{appFx.DefaultHostname}");
     }
 
     [Output]
     public Output<string> StorageConnectionString { get; set; }
     [Output]
-    public Output<string> StagingEndpoint { get; set; }
-    [Output]
     public Output<string> Endpoint { get; set; }
-    [Output]
-    public Output<string> ModelVersion { get; set; }
 }
