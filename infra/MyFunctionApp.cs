@@ -22,7 +22,7 @@ namespace infra
             {
                 Cors = new FunctionAppSiteConfigCorsArgs
                 {
-                    AllowedOrigins = new InputList<string> { "http://localhost:5500" },
+                    AllowedOrigins = new InputList<string> { "http://localhost:5500", "https://sadev8f092c2.z6.web.core.windows.net" },
                     SupportCredentials = true
                 }
             }
