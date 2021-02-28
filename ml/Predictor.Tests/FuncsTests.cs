@@ -71,10 +71,14 @@ namespace Predictor.Tests
             req.Body = new MemoryStream(body);
 
             // act
-            var result = (OkObjectResult) await _sut.Predict(req, NullLogger.Instance);
+            var result = (JsonResult) await _sut.Predict(req, NullLogger.Instance);
+
+            result?.Value.ShouldBeAssignableTo<SentimentPrediction>();
+
+            var value = result?.Value as SentimentPrediction;
 
             // assert
-            result.Value.ShouldBe(expected ? "Positive" : "Negative");
+            value.Prediction.ShouldBe(expected);
         }
     }
 }

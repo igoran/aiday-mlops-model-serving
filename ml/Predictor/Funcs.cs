@@ -39,35 +39,11 @@ namespace Predictor
             //Make Prediction   
             var sentimentPrediction = _predictionEnginePool.Predict(modelName: Constants.ModelName, example: sentimentIssue);
 
-            //Convert prediction to string
-            string sentiment = Convert.ToBoolean(sentimentPrediction.Prediction) ? "Positive" : "Negative";
-
+            //Track Prediction
             _telemetryClient.Track(sentimentPrediction, sentimentIssue, log);
 
             //Return Prediction
-            return new OkObjectResult(sentiment);
-        }
-
-        [FunctionName("predictorFull")]
-        public async Task<IActionResult> PredictFull(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "predict-full")] HttpRequest req, ILogger log)
-        {
-            //Parse HTTP Request Body
-            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var sentimentIssue = JsonConvert.DeserializeObject<SentimentIssue>(requestBody);
-
-            if (string.IsNullOrEmpty(sentimentIssue?.SentimentText))
-            {
-                return new BadRequestResult();
-            }
-
-            //Make Prediction   
-            var sentimentPrediction = _predictionEnginePool.Predict(modelName: Constants.ModelName, example: sentimentIssue);
-
-            _telemetryClient.Track(sentimentPrediction, sentimentIssue, log);
-
-            //Return Prediction
-            return new OkObjectResult(sentimentPrediction?.ToString());
+            return new JsonResult(sentimentPrediction);
         }
 
         [FunctionName("predictorSmoke")]
