@@ -8,6 +8,8 @@ namespace Predictor
     {
         public const string ModelName = "SentimentAnalysisModel";
 
-        public const string PredictionResponse = "prediction-response";
+        public const string PredictionResponseQueue = "PredictionResponseQueue";
+        public const string PredictionResultTable = "PredictionResultsTable";
+        public const string StorageConnectionString = "AzureWebJobsStorage";
     }
 }

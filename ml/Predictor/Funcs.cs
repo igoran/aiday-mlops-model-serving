@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,8 @@ namespace Predictor
 
         [FunctionName("predictor")]
         public async Task<IActionResult> Predict(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "predict")] HttpRequest req, [Queue(Constants.PredictionResponse, Connection = "AzureWebJobsStorage")]
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "predict")] HttpRequest req,
+            [Queue(Constants.PredictionResponseQueue, Connection = Constants.StorageConnectionString)]
             IAsyncCollector<string> responseQueue,
             CancellationToken cancellationToken,
             ILogger log)
@@ -52,36 +54,9 @@ namespace Predictor
             return new JsonResult(sentimentPrediction);
         }
 
-        [FunctionName("predictorSmoke")]
-        public IActionResult Smoke([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "smoke")] HttpRequest req, ILogger log)
-        {
-            try
-            {
-                var sentimentIssue = new SentimentIssue() { SentimentText = "This was a great place!" };
-
-                //Make Prediction   
-                var sentimentPrediction = _predictionEnginePool.Predict(modelName: Constants.ModelName, example: sentimentIssue);
-
-                //Convert prediction to string
-                string sentiment = Convert.ToBoolean(sentimentPrediction.Prediction) ? "Positive" : "Negative";
-
-                //Get model uri
-                var uri = Environment.GetEnvironmentVariable("ML_MODEL_URI") ?? string.Empty;
-                
-                //Return Prediction
-                return new OkObjectResult($"{sentiment}-{uri}");
-            }
-            catch (Exception ex)
-            {
-                log.LogCritical(ex.ToString());
-            }
-
-            return new BadRequestResult();
-        }
-
         [FunctionName("PredictorResultCollector")]
-        [return: Table("PredictionResults", Connection = "AzureWebJobsStorage")]
-        public PredictionResult PredictorResultCollector([QueueTrigger(Constants.PredictionResponse, Connection = "AzureWebJobsStorage")] string response, ILogger log)
+        [return: Table(Constants.PredictionResultTable, Connection = Constants.StorageConnectionString)]
+        public PredictionResult PredictorResultCollector([QueueTrigger(Constants.PredictionResponseQueue, Connection = "AzureWebJobsStorage")] string response, ILogger log)
         {
             log.LogInformation($"{nameof(PredictorResultCollector)} function processed: {response}");
 
@@ -99,7 +74,52 @@ namespace Predictor
             }
         }
 
-        [FunctionName("ping")]
+        [FunctionName("PredictorResultDownload")]
+        public async Task<IActionResult> PredictorResultDownload(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "predict/download/{modelVersion?}")] HttpRequest req,
+            string modelVersion,
+            [Table(Constants.PredictionResultTable, Connection = Constants.StorageConnectionString)] CloudTable table,
+            ILogger log)
+        {
+            log.LogInformation($"{nameof(PredictorResultDownload)} modelVersion: {modelVersion}");
+
+            //Get Model Version
+            var version = modelVersion ?? Utils.CurrentModelVersion();
+
+            var result = await PredictionResult.ExportTableAsCsv<PredictionResult>(table, modelVersion);
+
+            //Return Prediction
+            return new FileContentResult(result, "application/octet-stream") { FileDownloadName = $"{version}_{DateTime.Now:s}.csv" };
+        }
+
+        [FunctionName("PredictorSmoke")]
+        public IActionResult Smoke([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "smoke")] HttpRequest req, ILogger log)
+        {
+            try
+            {
+                var sentimentIssue = new SentimentIssue() { SentimentText = "This was a great place!" };
+
+                //Make Prediction   
+                var sentimentPrediction = _predictionEnginePool.Predict(modelName: Constants.ModelName, example: sentimentIssue);
+
+                //Convert prediction to string
+                string sentiment = Convert.ToBoolean(sentimentPrediction.Prediction) ? "Positive" : "Negative";
+
+                //Get model uri
+                var uri = Environment.GetEnvironmentVariable("ML_MODEL_URI") ?? string.Empty;
+
+                //Return Prediction
+                return new OkObjectResult($"{sentiment}-{uri}");
+            }
+            catch (Exception ex)
+            {
+                log.LogCritical(ex.ToString());
+            }
+
+            return new BadRequestResult();
+        }
+
+        [FunctionName("PredictorPing")]
         public IActionResult Ping([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")] HttpRequest req)
         {
             var uri = Utils.CurrentModelVersionUri();
