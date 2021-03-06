@@ -25,4 +25,9 @@
     <ItemGroup>
     <None Include="$(SolutionDir)data\model.zip" CopyToOutputDirectory="PreserveNewest" LinkBase="\" />
   </ItemGroup>
+    <ItemGroup>
+      <None Update="Payload.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
 </Project>

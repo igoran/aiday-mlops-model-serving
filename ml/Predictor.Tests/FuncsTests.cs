@@ -62,6 +62,21 @@ namespace Predictor.Tests
             result.ShouldBeOfType<BadRequestResult>();
         }
 
+        [Fact]
+        public void Should_Serialize_Data()
+        {
+            // arrange
+            var response = File.ReadAllText("Payload.json");
+
+            // act
+            var result = _sut.PredictorResultCollector(response,NullLogger.Instance);
+
+            // assert
+            result.ShouldBeOfType<PredictionResult>();
+
+            result.Text.ShouldBe("VERY BAD PLACE");
+        }
+
         [Theory]
         [MemberData(nameof(FeedbackScenario.Inputs), MemberType = typeof(FeedbackScenario))]
         public async Task Should_get_ok_result_and_good_predictions(string issue, bool expected)

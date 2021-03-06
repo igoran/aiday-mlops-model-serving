@@ -10,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ML;
 using Newtonsoft.Json;
 using Predictor.Models;
-using Predictor.Services;
 
 namespace Predictor
 {
@@ -86,9 +85,18 @@ namespace Predictor
         {
             log.LogInformation($"{nameof(PredictorResultCollector)} function processed: {response}");
 
-            var sentimentIssue = JsonConvert.DeserializeObject<SentimentPrediction>(response);
+            try
+            {
+                var sentimentIssue = JsonConvert.DeserializeObject<SentimentPrediction>(response);
 
-            return PredictionResult.From(sentimentIssue);
+                return PredictionResult.From(sentimentIssue);
+            }
+            catch (Exception ex)
+            {
+                log.LogCritical(nameof(PredictorResultCollector), ex);
+
+                throw;
+            }
         }
 
         [FunctionName("ping")]

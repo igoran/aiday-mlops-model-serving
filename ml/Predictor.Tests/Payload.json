@@ -1,0 +1,7 @@
+﻿{
+  "Prediction": false,
+  "Probability": 0.022050869,
+  "Score": -3.7921057,
+  "SentimentText": "VERY BAD PLACE",
+  "ModelVersion": "https://github.com/igoran/dnc-mlops-model-training/releases/download/0.1.0-b8e1e1a/0.1.0-b8e1e1a.zip"
+}
