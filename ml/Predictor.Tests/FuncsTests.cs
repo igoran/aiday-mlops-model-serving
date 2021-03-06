@@ -1,12 +1,15 @@
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.ML;
+using Moq;
 using Newtonsoft.Json;
 using Predictor.Models;
 using Predictor.Services;
@@ -24,9 +27,7 @@ namespace Predictor.Tests
         {
             var predictionEngine = testHost.ServiceProvider.GetRequiredService<PredictionEnginePool<SentimentIssue, SentimentPrediction>>();
 
-            var telemetryClient = testHost.ServiceProvider.GetRequiredService<IMetricsClient>();
-
-            _sut = new Funcs(predictionEngine, telemetryClient);
+            _sut = new Funcs(predictionEngine);
         }
 
         [Fact]
@@ -45,6 +46,8 @@ namespace Predictor.Tests
         [Fact]
         public async Task Should_get_bad_result_object_is_sentiment_text_is_null_or_empty()
         {
+            var collector = new Mock<IAsyncCollector<string>>();
+
             // arrange
             var req = new DefaultHttpRequest(new DefaultHttpContext());
 
@@ -53,7 +56,7 @@ namespace Predictor.Tests
             req.Body = new MemoryStream(body);
 
             // act
-            var result = await _sut.Predict(req, NullLogger.Instance);
+            var result = await _sut.Predict(req, collector.Object, CancellationToken.None, NullLogger.Instance);
 
             // assert
             result.ShouldBeOfType<BadRequestResult>();
@@ -63,6 +66,8 @@ namespace Predictor.Tests
         [MemberData(nameof(FeedbackScenario.Inputs), MemberType = typeof(FeedbackScenario))]
         public async Task Should_get_ok_result_and_good_predictions(string issue, bool expected)
         {
+            var collector = new Mock<IAsyncCollector<string>>();
+
             // arrange
             var req = new DefaultHttpRequest(new DefaultHttpContext());
 
@@ -71,7 +76,7 @@ namespace Predictor.Tests
             req.Body = new MemoryStream(body);
 
             // act
-            var result = (JsonResult) await _sut.Predict(req, NullLogger.Instance);
+            var result = (JsonResult) await _sut.Predict(req, collector.Object, CancellationToken.None, NullLogger.Instance);
 
             result?.Value.ShouldBeAssignableTo<SentimentPrediction>();
 

@@ -19,7 +19,7 @@ namespace Predictor
 
         public virtual Uri GetModelUri() {
 
-            var uri = Environment.GetEnvironmentVariable("ML_MODEL_URI") ?? string.Empty;
+            var uri = Utils.CurrentModelVersionUri();
 
             if (Uri.TryCreate(uri, UriKind.Absolute, out var _)) {
                 return new Uri(uri);

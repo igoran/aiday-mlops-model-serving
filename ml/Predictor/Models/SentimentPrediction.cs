@@ -11,7 +11,9 @@ namespace Predictor.Models
 
         public float Score { get; set; }
 
-        public string SentimentText;
+        public string SentimentText { get; set; }
+
+        public string ModelVersion { get; set; }
 
         public override string ToString()
         {

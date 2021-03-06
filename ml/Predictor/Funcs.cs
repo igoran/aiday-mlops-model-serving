@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -13,21 +14,24 @@ using Predictor.Services;
 
 namespace Predictor
 {
-    public class Funcs
+    public partial class Funcs
     {
         private readonly PredictionEnginePool<SentimentIssue, SentimentPrediction> _predictionEnginePool;
-        private readonly IMetricsClient _telemetryClient;
 
-        public Funcs(PredictionEnginePool<SentimentIssue, SentimentPrediction> predictionEnginePool, IMetricsClient telemetryClient)
+        public Funcs(PredictionEnginePool<SentimentIssue, SentimentPrediction> predictionEnginePool)
         {
             _predictionEnginePool = predictionEnginePool;
-            _telemetryClient = telemetryClient;
         }
 
         [FunctionName("predictor")]
         public async Task<IActionResult> Predict(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "predict")] HttpRequest req, ILogger log)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "predict")] HttpRequest req, [Queue(Constants.PredictionResponse, Connection = "AzureWebJobsStorage")]
+            IAsyncCollector<string> responseQueue,
+            CancellationToken cancellationToken,
+            ILogger log)
         {
+            log.LogInformation($"{nameof(Predict)} function processed");
+
             //Parse HTTP Request Body
             var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var sentimentIssue = JsonConvert.DeserializeObject<SentimentIssue>(requestBody);
@@ -39,8 +43,11 @@ namespace Predictor
             //Make Prediction   
             var sentimentPrediction = _predictionEnginePool.Predict(modelName: Constants.ModelName, example: sentimentIssue);
 
-            //Track Prediction
-            _telemetryClient.Track(sentimentPrediction, sentimentIssue, log);
+            //Assign current model version
+            sentimentPrediction.ModelVersion = Utils.CurrentModelVersionUri();
+
+            //Put in queue result for retraining purpose
+            await responseQueue.AddAsync(JsonConvert.SerializeObject(sentimentPrediction), cancellationToken);
 
             //Return Prediction
             return new JsonResult(sentimentPrediction);
@@ -73,10 +80,21 @@ namespace Predictor
             return new BadRequestResult();
         }
 
+        [FunctionName("PredictorResultCollector")]
+        [return: Table("PredictionResults", Connection = "AzureWebJobsStorage")]
+        public PredictionResult PredictorResultCollector([QueueTrigger(Constants.PredictionResponse, Connection = "AzureWebJobsStorage")] string response, ILogger log)
+        {
+            log.LogInformation($"{nameof(PredictorResultCollector)} function processed: {response}");
+
+            var sentimentIssue = JsonConvert.DeserializeObject<SentimentPrediction>(response);
+
+            return PredictionResult.From(sentimentIssue);
+        }
+
         [FunctionName("ping")]
         public IActionResult Ping([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")] HttpRequest req)
         {
-            var uri = Environment.GetEnvironmentVariable("ML_MODEL_URI") ?? string.Empty;
+            var uri = Utils.CurrentModelVersionUri();
 
             return new OkObjectResult(uri);
         }
