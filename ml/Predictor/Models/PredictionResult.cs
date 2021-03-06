@@ -36,6 +36,10 @@ namespace Predictor.Models
 
             var sb = new StringBuilder();
 
+            var header = $"\"Text\";\"Response\";\"Confidence\";\"Probability\";\"Score\";\"ModelVersion\"" + Environment.NewLine;
+
+            sb.Append(header);
+
             foreach (var result in list)
             {
                 sb.Append(result.ToCsv());
@@ -46,7 +50,9 @@ namespace Predictor.Models
 
         private string ToCsv()
         {
-            return $"{Text}|{Probability}|{Score}|{PartitionKey}" + Environment.NewLine;
+            var confidence = Response == 1 ? Probability : 1 - Probability;
+
+            return $"{Text};{Response};{confidence};{Probability};{Score};{PartitionKey}" + Environment.NewLine;
         }
 
         public static async Task<IEnumerable<T>> GetEntitiesFromTable<T>(CloudTable table, string partitionKey) where T : ITableEntity, new()

@@ -106,7 +106,7 @@ namespace Predictor
                 string sentiment = Convert.ToBoolean(sentimentPrediction.Prediction) ? "Positive" : "Negative";
 
                 //Get model uri
-                var uri = Environment.GetEnvironmentVariable("ML_MODEL_URI") ?? string.Empty;
+                var uri = Utils.CurrentModelVersionUri();
 
                 //Return Prediction
                 return new OkObjectResult($"{sentiment}-{uri}");
