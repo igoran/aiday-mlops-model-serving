@@ -43,7 +43,7 @@ namespace Predictor
             var sentimentPrediction = _predictionEnginePool.Predict(modelName: Constants.ModelName, example: sentimentIssue);
 
             //Assign current model version
-            sentimentPrediction.ModelVersion = Utils.CurrentModelVersionUri();
+            sentimentPrediction.ModelVersion = Utils.CurrentModelVersion();
 
             //Put in queue result for retraining purpose
             await responseQueue.AddAsync(JsonConvert.SerializeObject(sentimentPrediction), cancellationToken);

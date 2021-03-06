@@ -63,7 +63,7 @@ namespace Predictor.Tests
         }
 
         [Fact]
-        public void Should_Serialize_Data()
+        public void Should_deserialize_prediction_result()
         {
             // arrange
             var response = File.ReadAllText("Payload.json");
@@ -72,8 +72,6 @@ namespace Predictor.Tests
             var result = _sut.PredictorResultCollector(response,NullLogger.Instance);
 
             // assert
-            result.ShouldBeOfType<PredictionResult>();
-
             result.Text.ShouldBe("VERY BAD PLACE");
         }
 
